@@ -67,7 +67,7 @@ int encode(int infd,int outfd, unsigned char *read_letters, int tot_read){
     return state;
 }
 
-bool issymbol(unsigned char *c, char *index){
+/*bool issymbol(unsigned char *c, char *index){
     for (int i = SYMBOL_POS; letters[i] && i < FILL_CHAR_POS; ++i){
         if (*c == letters[i]){
             *index = i;
@@ -75,8 +75,8 @@ bool issymbol(unsigned char *c, char *index){
         }
     }
     return false;
-}
-
+}*/
+/*
 int decode(int infd, int outfd, unsigned char *read_letters, int count){
     char indexes[ENCODED_GROUP_SZ + 1] = {0};
     char buff[DECODED_GROUP_SZ + 1] = {0};
@@ -126,7 +126,7 @@ int decode(int infd, int outfd, unsigned char *read_letters, int count){
        return errno;
     }
     return SUCCESS;
-}
+}*/
 
 int base64_encode(int infd, int outfd){
     int state = SUCCESS;
