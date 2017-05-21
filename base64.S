@@ -183,7 +183,7 @@ decode:
 for_decode:
     lw s0, DECODE_i_OFF($fp)                #Cargo el vlalor de i desde el stack.
 	lw t0, DECODE_a3_OFF($fp) 				#Regs[t0] <- count
-    bge s0, t0, write               		#If(i >= count): Goto write.
+    beq s0, t0, write 						#bge s0, t0, write               		#If(i >= count): Goto write.
 
     lw t1, DECODE_a2_OFF($fp) 				#Regs[t1] <- read_letters.  
     addu t1, s0, t1 						#Regs[t1] <- read_letters + i.
@@ -221,7 +221,7 @@ if_is_lower:
 if_is_digit:
     blt t2, MIN_VAL_DIGIT, if_not_is_sym    #Si read_letters[i] es menor que el minimo valor de las dígitos: Goto if_not_is_sym.
     bgt t2, MAX_VAL_DIGIT, if_not_is_sym    #Si read_letters[i] es mayor que el máximo valor de las dígitos: Goto if_not_is_sym.    
-    subu t6, t2, DELTA_NUM                  #Regs[t6] <- read_letters[i] - DELTA_NUM
+    addiu t6, t2, DELTA_NUM                 #Regs[t6] <- read_letters[i] - DELTA_NUM
  
     sb t6, 0(t5)                            #indexes[i] <- Regs[t6] (read_letters[i] - DELTA_NUM).
     b end_for
