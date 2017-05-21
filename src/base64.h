@@ -23,4 +23,7 @@ extern int decode(int infd, int outfd, unsigned char *letters, int count);
 
 //extern int encode_text(int infd, int outfd);
 
+extern void show_version();
+extern void show_help();
+
 #endif //BASE64_H
