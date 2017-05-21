@@ -66,16 +66,6 @@ int encode(int infd,int outfd, unsigned char *read_letters, int tot_read){
     }
     return state;
 }
-
-/*bool issymbol(unsigned char *c, char *index){
-    for (int i = SYMBOL_POS; letters[i] && i < FILL_CHAR_POS; ++i){
-        if (*c == letters[i]){
-            *index = i;
-            return true;
-        }
-    }
-    return false;
-}*/
 /*
 int decode(int infd, int outfd, unsigned char *read_letters, int count){
     char indexes[ENCODED_GROUP_SZ + 1] = {0};
