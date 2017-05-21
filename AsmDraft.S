@@ -260,12 +260,24 @@ encode:
 	jal	ra,	t9				
 
 
-#ACA INSERTAR concatenate_byte_to_binary:
-#    for(int i = 0; i < sizeof(int); ++i){
-#        read_bytes = read_bytes | (read_letters[i] << (sizeof(int) -1 -i)*BYTE_SZ);
-#    }
-						
-	sw	v0,	READ_BYTES_OFF($fp)			#Cargo la variable 'read_bytes' guardada en v0 (obtenida de llamar a 'concantenate_binary_to_int') en memoria.
+	li t0,0 # t0 = i
+	li t1,0 # t1 = read_bytes
+	li t2,4 # t2 = sizeof(int)
+	lw t4,ENC_OUT_a1_OFF($fp) #tengo en t4 a read_letters
+	
+	concatenate: 	beq t0,t2,finConcatenate	 #si i = sizeof(int) corto
+			li t3,3 	# t3 = sizeof(int)-1
+			subu t3,t3,t0 	# t3 = sizeof(int)-1 - i
+			sll t3,t3,3 	# t3 = t3>>3 = t3*8 = t3*BYTE_SZ
+			addu t4,t4,t0 	#characters i. voy a avanzar en t4
+			lb t5,0(t4) 	#cargo el caracter
+			sll t5,t5,t3 	#shifteo t4 según t3
+			or t1,t1,t5     #hago el or
+			addi t0,t0,1    #incremento i
+			b concatenate	
+			
+	finConcatenate:
+	sw	t1,	READ_BYTES_OFF($fp)			#Cargo la variable 'read_bytes' guardada en v0 (obtenida de llamar a 'concantenate_binary_to_int') en memoria.
 	sw	zero,	J_OFF($fp)				#Inicializo j = 0 en memoria.
 ENCODE_GROUP:
 	lw	v0, J_OFF($fp)					#Regs[v0] <- j
