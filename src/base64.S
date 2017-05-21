@@ -137,15 +137,18 @@ DECODE_i_OFF = 16
 ENCODED_GROUP_SZ = 4
 DECODED_GROUP_SZ = 3
 INVALID_CHARACTER = 1
-DELTA_UPP = 65
-DELTA_LOW = 71
-DELTA_NUM = 4
-MIN_VAL_UPP = 65
-MAX_VAL_UPP = 90
-MIN_VAL_LOW = 97
-MAX_VAL_LOW = 122
-MIN_VAL_DIGIT = 48
-MAX_VAL_DIGIT = 57
+DELTA_UPP = 0x41
+DELTA_LOW = 0x47
+DELTA_NUM = 0x4
+MIN_VAL_UPP = 0x41
+MAX_VAL_UPP = 0x5A
+MIN_VAL_LOW = 0x61
+MAX_VAL_LOW = 0x7A
+MIN_VAL_DIGIT = 0x30
+MAX_VAL_DIGIT = 0x39
+SYMBOL_A_POS = 62
+SYMBOL_B_POS = 63
+
 DMASK_1 = 48
 DMASK_2 = 15
 DMASK_3 = 60
@@ -219,20 +222,28 @@ if_is_lower:
     b end_for
 
 if_is_digit:
-    blt t2, MIN_VAL_DIGIT, if_not_is_sym    #Si read_letters[i] es menor que el minimo valor de las dígitos: Goto if_not_is_sym.
-    bgt t2, MAX_VAL_DIGIT, if_not_is_sym    #Si read_letters[i] es mayor que el máximo valor de las dígitos: Goto if_not_is_sym.    
+    blt t2, MIN_VAL_DIGIT, if_is_sym_a      #Si read_letters[i] es menor que el minimo valor de las dígitos: Goto if_not_is_sym.
+    bgt t2, MAX_VAL_DIGIT, if_is_sym_a      #Si read_letters[i] es mayor que el máximo valor de las dígitos: Goto if_not_is_sym.    
     addiu t6, t2, DELTA_NUM                 #Regs[t6] <- read_letters[i] - DELTA_NUM
  
     sb t6, 0(t5)                            #indexes[i] <- Regs[t6] (read_letters[i] - DELTA_NUM).
     b end_for
 
-if_not_is_sym:
-    move a0, t1 	            			#Regs[a0] <- read_letters + i.
-    move a1, t5 		                    #Regs[a1] <- indexes + i.
+if_is_sym_a:
+    la t3, letters + SYMBOL_A_POS			#Regs[t6] <- letters + SYMBOL_A_POS 
+    lbu t6, 0(t3) 							#Regs[t6] <- letters[SYMBOL_A_POS]
+    bne t2, t6, if_is_sym_b 				#If(read_letters[i] != letters[SYMBOL_A_POS]): Goto if_is_sym_b
+    li t6, SYMBOL_A_POS 					#Regs[t6] <- SYMBOL_A_POS
+    sb t6, 0(t5)                            #indexes[i] <- SYMBOL_A_POS
+    b end_for
 
-    la t9, issymbol                         #Llamado a la subrutina 'issymbol'.
-    jalr t9
-    beqz v0, end_decode_error               #If(v0 == 0) (es decir, issymbol(read_letters +i, indexes + i) = False): Goto end_decode_error.
+if_is_sym_b:
+    la t3,letters + SYMBOL_B_POS			#Regs[t6] <- letters + SYMBOL_B_POS 
+    lbu t6, 0(t3) 							#Regs[t6] <- letters[SYMBOL_B_POS]
+    bne t2, t6, end_decode_error			#If(read_letters[i] != letters[SYMBOL_B_POS]): Goto end_decode_error
+    li t6, SYMBOL_B_POS 					#Regs[t6] <- SYMBOL_B_POS
+    sb t6, 0(t5)                            #indexes[i] <- SYMBOL_B_POS
+    b end_for
     
 end_for:
     addiu s0, s0, 1                         #Regs[s0] <- i + 1
