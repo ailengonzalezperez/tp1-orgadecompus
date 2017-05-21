@@ -77,46 +77,6 @@ letters:
 FILL_CHAR_POS = 64
 SUCCESS = 0
 
-.align	2
-.ent issymbol
-.globl issymbol
-
-issymbol:
-	.frame $fp, 8, ra			
-	.set noreorder
-	.cpload	t9
-	.set reorder
-	subu sp, sp, 8
-	.cprestore 4
-	sw	$fp, 0(sp)
-	move $fp, sp
-
-	li t0, 64 								#t0 = FILL_CHAR_POS
-	li t1, 62 								#t1 = SYMBOL_POS = i
-	
-
-	ciclo: 	beq t0, t1, finIsSymbol 		#primer condicion
-			la t2, letters  				#dire de letters en t2
-			add t2, t2, t1  				#le sumo i
-			lb t2, 0(t2) 					#cargo el byte en t2+1
-			beqz t2, finIsSymbol 			#segunda condicion de corte
-			bne a0, t2, vueltaWhile 		#si letters i != c -> vuelta a while
-			move a1, t1 					# a1 = *index = i
-			li v0, 1 						# 1 = true
-			b retorno
-			
-	vueltaWhile: addi t1,t1,1 #i++
-				 b ciclo
-	
-	finIsSymbol: li v0,0
-	retorno:	lw $fp,0(sp)
-				lw gp,4(sp)
-				addu sp,sp,8
-	
-				j	ra
-.end issymbol
-
-
 DECODE_a3_OFF = 68
 DECODE_a2_OFF = 64
 DECODE_a1_OFF = 60
