@@ -10,17 +10,9 @@
 #include <errno.h>
 #include <sys/types.h>
 
-#define BYTE_SZ 8
-#define GROUP_SZ 6.0
-#define SYMBOL_A 62
-#define SYMBOL_B 63
-#define FILL_CHAR_POS 64
-#define ENCODED_GROUP_SZ 4
-#define DECODED_GROUP_SZ 3
 
-typedef enum error { ERROR =-1, SUCCESS, INVALID_CHARACTER, IO_ERROR, MEMORY_ERROR} Error_t;
-/*
-#define MASK 0x3F
+
+/*#define MASK 0x3F
 #define DMASK_1 0x30
 #define DMASK_2 0xf
 #define DMASK_3 0x3c
@@ -38,8 +30,7 @@ static const char letters[] = {'A','B','C','D','E','F','G','H','I','J','K','L','
 '6','7','8','9','+','/','='};
 
 */
-/*
-int encode(int infd,int outfd, unsigned char *read_letters, int tot_read){
+/*int encode(int infd,int outfd, unsigned char *read_letters, int tot_read){
     int read_bytes = 0;
     unsigned int index = 0, shift_count = 0;
 
@@ -67,8 +58,7 @@ int encode(int infd,int outfd, unsigned char *read_letters, int tot_read){
     }
     return SUCCESS;
 }*/
-/*
-int decode(int infd, int outfd, unsigned char *read_letters, int count){
+/*int decode(int infd, int outfd, unsigned char *read_letters, int count){
     char indexes[ENCODED_GROUP_SZ + 1] = {0};
     char buff[DECODED_GROUP_SZ + 1] = {0};
 
@@ -123,7 +113,7 @@ int decode(int infd, int outfd, unsigned char *read_letters, int count){
     return SUCCESS;
 }*/
 
-int base64_encode(int infd, int outfd){
+/*int base64_encode(int infd, int outfd){
     int state = SUCCESS;
     unsigned char read_letters[sizeof(int)];
     memset(&read_letters, '\0', sizeof(int));
@@ -136,9 +126,9 @@ int base64_encode(int infd, int outfd){
         qty_read = read(infd, read_letters, DECODED_GROUP_SZ);
     }
     return state;
-}
+}*/
 
-int base64_decode(int infd, int outfd){
+/*int base64_decode(int infd, int outfd){
     int state = SUCCESS;
     unsigned char read_letters[ENCODED_GROUP_SZ + 1];
     memset(read_letters, '\0', (ENCODED_GROUP_SZ + 1)*sizeof(char));
@@ -153,5 +143,5 @@ int base64_decode(int infd, int outfd){
         qty_read = read(infd, read_letters, ENCODED_GROUP_SZ);
     }
     return state;
-}
+}*/
 
