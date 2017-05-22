@@ -1,6 +1,69 @@
 #include<mips/regdef.h>
 #include<sys/syscall.h>
 
+FILL_CHAR_POS = 64
+SUCCESS = 0
+
+DECODE_a3_OFF = 68
+DECODE_a2_OFF = 64
+DECODE_a1_OFF = 60
+DECODE_a0_OFF = 56
+DECODE_SF_SZ = 56
+
+DECODE_S0_OFF = 48
+DECODE_S1_OFF = 44
+
+DECODE_RA_OFF = 40
+DECODE_FP_OFF = 36
+DECODE_GP_OFF = 32
+DECODE_BUFF_OFF = 28
+DECODE_INDEXES_OFF = 24
+DECODE_LEN_OFF = 20
+DECODE_i_OFF = 16
+
+ENCODED_GROUP_SZ = 4
+DECODED_GROUP_SZ = 3
+INVALID_CHARACTER = 1
+DELTA_UPP = 0x41
+DELTA_LOW = 0x47
+DELTA_NUM = 0x4
+MIN_VAL_UPP = 0x41
+MAX_VAL_UPP = 0x5A
+MIN_VAL_LOW = 0x61
+MAX_VAL_LOW = 0x7A
+MIN_VAL_DIGIT = 0x30
+MAX_VAL_DIGIT = 0x39
+SYMBOL_A_POS = 62
+SYMBOL_B_POS = 63
+
+DMASK_1 = 48
+DMASK_2 = 15
+DMASK_3 = 60
+DMASK_4 = 3
+
+ENCODE_a3_OFF = 76
+ENCODE_a2_OFF = 72
+ENCODE_a1_OFF = 68
+ENCODE_a0_OFF = 64
+
+ENCODE_SF_SZ = 64
+ENCODE_RA_OFF = 56
+ENCODE_FP_OFF = 52
+ENCODE_GP_OFF = 48
+GROUP_QTY_OFF = 44
+J_OFF = 40
+I_OFF = 36
+ENCODED_CHARS_OFF = 32
+SHIFT_COUNT = 24
+INDEX_OFF = 20
+READ_BYTES_OFF = 16
+
+GROUP_SZ = 6
+BYTE_SZ = 8
+MAX_GROUP_QTY = 4
+SZ_INT = 4
+MASK = 0x3F
+
 .rdata
 
 version:  .asciiz "\n\nOrganizacion de Computadoras - TP1 \nEncoder/Decoder Base64 - v2.2 \nGroup Members:\nGonzalez Perez, Ailen Padron: 97043\nMariotti, Maria Eugenia Padron: 96260\nRaña, Cristian Ezequiel Padron: 95457\n"		
@@ -78,9 +141,6 @@ letters:
 
 .text
 
-FILL_CHAR_POS = 64
-SUCCESS = 0
-
 .ent show_version		
 .globl show_version		
 show_version: 
@@ -130,46 +190,205 @@ show_help:
 	jr ra
 .end show_help
 
-DECODE_a3_OFF = 68
-DECODE_a2_OFF = 64
-DECODE_a1_OFF = 60
-DECODE_a0_OFF = 56
-DECODE_SF_SZ = 56
 
-DECODE_S0_OFF = 48
-DECODE_S1_OFF = 44
+.align 2
+.globl	encode
+.ent	encode
+encode:
+	.frame	$fp, ENCODE_SF_SZ, ra
+	.set	noreorder
+	.cpload	t9
+	.set	reorder
+	subu	sp, sp, ENCODE_SF_SZ
+	.cprestore ENCODE_GP_OFF
+	sw	ra, ENCODE_RA_OFF(sp)			#Guardo el ra(return address) actual.
+	sw	$fp, ENCODE_FP_OFF(sp)			#Guardo el $fp(frame pointer) actual.
 
-DECODE_RA_OFF = 40
-DECODE_FP_OFF = 36
-DECODE_GP_OFF = 32
-DECODE_BUFF_OFF = 28
-DECODE_INDEXES_OFF = 24
-DECODE_LEN_OFF = 20
-DECODE_i_OFF = 16
+	move $fp, sp 						#Muevo el stack frame pointer a la base del stack.
 
-ENCODED_GROUP_SZ = 4
-DECODED_GROUP_SZ = 3
-INVALID_CHARACTER = 1
-DELTA_UPP = 0x41
-DELTA_LOW = 0x47
-DELTA_NUM = 0x4
-MIN_VAL_UPP = 0x41
-MAX_VAL_UPP = 0x5A
-MIN_VAL_LOW = 0x61
-MAX_VAL_LOW = 0x7A
-MIN_VAL_DIGIT = 0x30
-MAX_VAL_DIGIT = 0x39
-SYMBOL_A_POS = 62
-SYMBOL_B_POS = 63
+	sw	a0, ENCODE_a0_OFF($fp)			#Guardo los parametros recibidos (int infd, int outfd, int state, 
+	sw	a1, ENCODE_a1_OFF($fp)			#unsigned char *read_letters) en el ABA de la callee.
+	sw	a2, ENCODE_a2_OFF($fp)
+	sw	a3, ENCODE_a3_OFF($fp)
 
-DMASK_1 = 48
-DMASK_2 = 15
-DMASK_3 = 60
-DMASK_4 = 3
+	addiu a0, $fp, ENCODED_CHARS_OFF 	#Regs[a0] <- encoded_chars.
+	la t2, letters + FILL_CHAR_POS 		#Regs[t2] <- letters + FILL_CHAR_POS. Cargo la direccion en memoria del caracter de relleno en Regs[t2].
+	lbu a1, (t2) 					 	#Regs[a2] <- '='.
+	li a2, MAX_GROUP_QTY 				#Regs[a3] <- MAX_GROUP_QTY.
 
-    .align  2
-    .globl  decode
-    .ent    decode
+	la t9, memset						#Llamado a subrutina 'memset'.
+	jalr t9
+
+	sw zero, I_OFF($fp) 				#Inicializo la variable i = 0.
+	lw t2, I_OFF($fp) 					#Regs[t2] <- i.
+	li t3, SZ_INT 						#Regs[t3] <- sizeof(int). Guardo el valor en bytes del tipo 'int' en Regs[t3].
+	lw t4, ENCODE_a2_OFF($fp) 			#Regs[t4] <- read_letters.
+	move t5, zero 						#Regs[t5] <- read_bytes. Inicializo Regs[t5] en 0 para usarlo como variable 'read_bytes'. 
+	sw t5, READ_BYTES_OFF($fp)          #Inicializo la variable 'read_bytes' en memoria.
+
+concatenate:
+	lw t5, READ_BYTES_OFF($fp)          #Regs[t5] <- read_bytes.
+	bge t2, t3, find_b64_char 			#If(i >= sizeof(int)): Goto find_b64_char.
+	addu t6, t4, t2 					#Regs[t6] <- read_letters + i.
+	lbu t6, (t6)						#Regs[t6] <- read_letters[i].
+
+	subu t7, t3, 1 						#Regs[t7] <- (sizeof(int) -1).
+	subu t7, t7, t2 					#Regs[t7] <- (sizeof(int) -1 -i).
+	mul t7, t7, BYTE_SZ         		#Regs[t7] <- (sizeof(int) -1 -i)*BYTE_SZ.
+	sll t8, t6, t7 						#Regs[t8] <- (read_letters[i] <<(sizeof(int) -1 -i)*BYTE_SZ).
+	or t5, t5, t8 						#read_bytes = read_bytes | (read_letters[i] <<(sizeof(int) -1 -i)*BYTE_SZ).
+	sw t5, READ_BYTES_OFF($fp)          #Actualizo la variable 'read_bytes' en memoria.
+	addiu t2, t2, 1 					#i++.
+	sw t2, I_OFF($fp)					#Actualizo la variable 'i' en memoria.
+	b concatenate						#Goto concatenate.
+
+find_b64_char:
+	lw	t0, ENCODE_a3_OFF($fp)			#Regs[t0] <- tot_read.
+	sll	t0, t0, 3						#Regs[t0] <- tot_read * BYTE_SZ.
+	li t1, GROUP_SZ 					#Regs[t1] <- GROUP_SZ.
+	divu t0, t1 						#Regs[lo] <- tot_read * BYTE_SZ / GROUP_SZ.
+
+	mflo t2 							#Regs[t2] <- group_qty.
+	sw t2, GROUP_QTY_OFF($fp) 			#Actualizo en memoria la variable group_qty.
+
+	sw zero, J_OFF($fp) 				#Inicializo la variable j = 0 en el memoria.
+	lw t3, J_OFF($fp) 					#Regs[t3] <- j.
+
+	li t4, MAX_GROUP_QTY                #Regs[t4] <- MAX_GROUP_QTY.
+	lw t5, READ_BYTES_OFF($fp)			#Regs[t5] <- read_bytes.	
+	la t6, letters 						#Regs[t6] <- letters. 
+	addiu t7, $fp, ENCODED_CHARS_OFF 	#Regs[t7] <- encoded_chars.
+
+for_group_qty:
+	bge t3, t2, write_enc 				#If(j >= group_qty): Goto write_enc.
+
+	subu t8, t4, t3 					#Regs[t8] <- (MAX_GROUP_QTY - j).
+	subu t8, t8, 1   					#Regs[t8] <- (MAX_GROUP_QTY - j - 1).
+	mul t8, t8, t1   					#Regs[t8] <- (MAX_GROUP_QTY - j - 1)*GROUP_SZ.
+	addiu t8, t8, BYTE_SZ				#Regs[t8] <- (MAX_GROUP_QTY - j - 1)*GROUP_SZ + BYTE_SZ.
+	sw t8, SHIFT_COUNT($fp)				#Actualizo la variable shift_count en memoria.
+
+	srl t8, t5, t8 						#Regs[t8] <- (read_bytes >> shift_count).
+	and t8, t8, MASK 					#Regs[t8] <- (read_bytes >> shift_count) & MASK.
+
+	sw t8, INDEX_OFF($fp)				#Actualizo la variable index en memoria.
+
+	addu t9, t6, t8 					#Regs[t9] <- letters + index.
+	lbu t8, (t9)						#Regs[t8] <- letters[index].
+
+	addu t0, t7, t3 					#Regs[t0] <- encoded_chars + j.
+	sb t8, (t0)							#encoded_chars[j] = letters[index].  
+
+	addiu t3, t3, 1 					#j++.
+	sw t3, J_OFF($fp) 					#Actualizo la variable 'j' en memoria.
+	b for_group_qty						#Goto for_group_qty.
+
+write_enc:
+	lw a0, ENCODE_a1_OFF($fp) 				#Regs[a0] <- outfd.
+	addiu a1, $fp, ENCODED_CHARS_OFF		#Regs[a1] <- encoded_chars. Cargo la direccion inicial del array 'encoded_chars' en Regs[a1].
+	li a2, MAX_GROUP_QTY 					#Regs[a2] <- max_group_qty.
+
+	li	v0, SYS_write 						#Write file.   
+	syscall
+
+	bnez a3, end_encode					    #Si hubo error de escritura (a3!=0): Goto end_decode. El error esta cargado en v0.
+	li v0, SUCCESS 							#Si no, cargo SUCCESS en v0.
+	b end_encode
+
+end_encode:
+	lw	ra, ENCODE_RA_OFF(sp)			#Restauro el return address.	
+	lw	gp, ENCODE_GP_OFF(sp)			#Restauro el global pointer.
+	lw	$fp, ENCODE_FP_OFF(sp)			#Restauro el $fp(frame pointer).
+		
+	addu sp, sp, ENCODE_SF_SZ			#Restauro el stack pointer.
+	
+	jr	ra
+.end encode
+
+.align	2
+.globl	base64_decode
+.ent	base64_decode
+base64_decode:
+	.frame	$fp,64,ra
+	.set	noreorder
+	.cpload	t9
+	.set	reorder
+	subu	sp,sp,64
+	.cprestore 16
+
+	sw	ra,56(sp)
+	sw	$fp,52(sp)
+	sw	gp,48(sp)
+	move	$fp,sp
+
+	sw	a0,64($fp) #preservo a0 y a1
+	sw	a1,68($fp)
+
+	sw	zero,24($fp) #cargo state = 0 en 24($fp)
+
+	addu a0,$fp,32 #mi posiciòn de escritura es a 32($fp)
+	move a1,zero 
+	li	a2,5	#(4+1)*sizeof(char)
+	
+	jal	memset #llamada a memset. despues, va a venir la primer lectura de qty_read
+
+	addu a1,$fp,32 #destino de lectura
+	lw	a0,64($fp) #input fd
+	li	a2,4 #quiero leer 4 bytes
+	li v0,SYS_read
+	
+	syscall #leo
+	
+	sw	v0,40($fp) #cargo en qty_read, lo que leyó y vino en v0
+
+loop_b64d: #aquí viene el ciclo de lectura
+	lw	t1,40($fp) #cargo qty_read
+	blez	t1,fin_ciclo #si qty_read <= 0  -> salto
+	lw	t1,24($fp) #cargo state
+	bnez	t1,fin_ciclo #si no es cero, termina
+
+	addu a2,$fp,32 #destino (read_letters)
+	lw	a0,64($fp) #fd in
+	lw	a1,68($fp) #fd out
+	lw	a3,40($fp) #qty_read
+	
+	jal	decode
+	
+	sw	v0,24($fp) #el resultado de decode se asigna a state
+
+	addu	v0,$fp,32 #se repite el memset de antes
+	move	a0,v0
+	move	a1,zero
+	li	a2,5	
+	
+	jal	memset
+
+
+	addu a1,$fp,32 #destino de lectura (qty_read)
+	lw	a0,64($fp) #input fd
+	li	a2,4 #quiero leer 4 bytes
+	li v0,SYS_read
+	
+	syscall
+	
+	sw	v0,40($fp)
+	
+	b loop_b64d
+	
+fin_ciclo:
+	lw	v0,24($fp)
+	move	sp,$fp
+	lw	ra,56(sp)
+	lw	$fp,52(sp)
+	addu	sp,sp,64
+	jr	ra
+
+.end	base64_decode
+
+.align 2
+.ent decode    
+.globl decode
+
 decode:
     .frame  $fp, DECODE_SF_SZ, ra
     .set    noreorder
@@ -330,141 +549,83 @@ end_decode:
     jr ra
 .end decode
 
-ENCODE_a3_OFF = 76
-ENCODE_a2_OFF = 72
-ENCODE_a1_OFF = 68
-ENCODE_a0_OFF = 64
-
-ENCODE_SF_SZ = 64
-ENCODE_RA_OFF = 56
-ENCODE_FP_OFF = 52
-ENCODE_GP_OFF = 48
-GROUP_QTY_OFF = 44
-J_OFF = 40
-I_OFF = 36
-ENCODED_CHARS_OFF = 32
-SHIFT_COUNT = 24
-INDEX_OFF = 20
-READ_BYTES_OFF = 16
-
-GROUP_SZ = 6
-BYTE_SZ = 8
-MAX_GROUP_QTY = 4
-SZ_INT = 4
-MASK = 0x3F
-
-.align 2
-.globl	encode
-.ent	encode
-encode:
-	.frame	$fp, ENCODE_SF_SZ, ra
+.align	2
+.globl	base64_encode
+.ent	base64_encode
+base64_encode:
+	.frame	$fp,64,ra
 	.set	noreorder
 	.cpload	t9
 	.set	reorder
-	subu	sp, sp, ENCODE_SF_SZ
-	.cprestore ENCODE_GP_OFF
-	sw	ra, ENCODE_RA_OFF(sp)			#Guardo el ra(return address) actual.
-	sw	$fp, ENCODE_FP_OFF(sp)			#Guardo el $fp(frame pointer) actual.
+	subu	sp,sp,64
+	.cprestore 16
 
-	move $fp, sp 						#Muevo el stack frame pointer a la base del stack.
+	sw	ra,56(sp)
+	sw	$fp,52(sp)
+	sw	gp,48(sp)
+	move	$fp,sp
 
-	sw	a0, ENCODE_a0_OFF($fp)			#Guardo los parametros recibidos (int infd, int outfd, int state, 
-	sw	a1, ENCODE_a1_OFF($fp)			#unsigned char *read_letters) en el ABA de la callee.
-	sw	a2, ENCODE_a2_OFF($fp)
-	sw	a3, ENCODE_a3_OFF($fp)
+	sw	a0,64($fp) #preservo a0 y a1
+	sw	a1,68($fp)
 
-	addiu a0, $fp, ENCODED_CHARS_OFF 	#Regs[a0] <- encoded_chars.
-	la t2, letters + FILL_CHAR_POS 		#Regs[t2] <- letters + FILL_CHAR_POS. Cargo la direccion en memoria del caracter de relleno en Regs[t2].
-	lbu a1, (t2) 					 	#Regs[a2] <- '='.
-	li a2, MAX_GROUP_QTY 				#Regs[a3] <- MAX_GROUP_QTY.
+	sw	zero,24($fp) #cargo state = 0 en 24($fp)
 
-	la t9, memset						#Llamado a subrutina 'memset'.
-	jalr t9
-
-	sw zero, I_OFF($fp) 				#Inicializo la variable i = 0.
-	lw t2, I_OFF($fp) 					#Regs[t2] <- i.
-	li t3, SZ_INT 						#Regs[t3] <- sizeof(int). Guardo el valor en bytes del tipo 'int' en Regs[t3].
-	lw t4, ENCODE_a2_OFF($fp) 			#Regs[t4] <- read_letters.
-	move t5, zero 						#Regs[t5] <- read_bytes. Inicializo Regs[t5] en 0 para usarlo como variable 'read_bytes'. 
-	sw t5, READ_BYTES_OFF($fp)          #Inicializo la variable 'read_bytes' en memoria.
-
-concatenate:
-	lw t5, READ_BYTES_OFF($fp)          #Regs[t5] <- read_bytes.
-	bge t2, t3, find_b64_char 			#If(i >= sizeof(int)): Goto find_b64_char.
-	addu t6, t4, t2 					#Regs[t6] <- read_letters + i.
-	lbu t6, (t6)						#Regs[t6] <- read_letters[i].
-
-	subu t7, t3, 1 						#Regs[t7] <- (sizeof(int) -1).
-	subu t7, t7, t2 					#Regs[t7] <- (sizeof(int) -1 -i).
-	mul t7, t7, BYTE_SZ         		#Regs[t7] <- (sizeof(int) -1 -i)*BYTE_SZ.
-	sll t8, t6, t7 						#Regs[t8] <- (read_letters[i] <<(sizeof(int) -1 -i)*BYTE_SZ).
-	or t5, t5, t8 						#read_bytes = read_bytes | (read_letters[i] <<(sizeof(int) -1 -i)*BYTE_SZ).
-	sw t5, READ_BYTES_OFF($fp)          #Actualizo la variable 'read_bytes' en memoria.
-	addiu t2, t2, 1 					#i++.
-	sw t2, I_OFF($fp)					#Actualizo la variable 'i' en memoria.
-	b concatenate						#Goto concatenate.
-
-find_b64_char:
-	lw	t0, ENCODE_a3_OFF($fp)			#Regs[t0] <- tot_read.
-	sll	t0, t0, 3						#Regs[t0] <- tot_read * BYTE_SZ.
-	li t1, GROUP_SZ 					#Regs[t1] <- GROUP_SZ.
-	divu t0, t1 						#Regs[lo] <- tot_read * BYTE_SZ / GROUP_SZ.
-
-	mflo t2 							#Regs[t2] <- group_qty.
-	sw t2, GROUP_QTY_OFF($fp) 			#Actualizo en memoria la variable group_qty.
-
-	sw zero, J_OFF($fp) 				#Inicializo la variable j = 0 en el memoria.
-	lw t3, J_OFF($fp) 					#Regs[t3] <- j.
-
-	li t4, MAX_GROUP_QTY                #Regs[t4] <- MAX_GROUP_QTY.
-	lw t5, READ_BYTES_OFF($fp)			#Regs[t5] <- read_bytes.	
-	la t6, letters 						#Regs[t6] <- letters. 
-	addiu t7, $fp, ENCODED_CHARS_OFF 	#Regs[t7] <- encoded_chars.
-
-for_group_qty:
-	bge t3, t2, write_enc 				#If(j >= group_qty): Goto write_enc.
-
-	subu t8, t4, t3 					#Regs[t8] <- (MAX_GROUP_QTY - j).
-	subu t8, t8, 1   					#Regs[t8] <- (MAX_GROUP_QTY - j - 1).
-	mul t8, t8, t1   					#Regs[t8] <- (MAX_GROUP_QTY - j - 1)*GROUP_SZ.
-	addiu t8, t8, BYTE_SZ				#Regs[t8] <- (MAX_GROUP_QTY - j - 1)*GROUP_SZ + BYTE_SZ.
-	sw t8, SHIFT_COUNT($fp)				#Actualizo la variable shift_count en memoria.
-
-	srl t8, t5, t8 						#Regs[t8] <- (read_bytes >> shift_count).
-	and t8, t8, MASK 					#Regs[t8] <- (read_bytes >> shift_count) & MASK.
-
-	sw t8, INDEX_OFF($fp)				#Actualizo la variable index en memoria.
-
-	addu t9, t6, t8 					#Regs[t9] <- letters + index.
-	lbu t8, (t9)						#Regs[t8] <- letters[index].
-
-	addu t0, t7, t3 					#Regs[t0] <- encoded_chars + j.
-	sb t8, (t0)							#encoded_chars[j] = letters[index].  
-
-	addiu t3, t3, 1 					#j++.
-	sw t3, J_OFF($fp) 					#Actualizo la variable 'j' en memoria.
-	b for_group_qty						#Goto for_group_qty.
-
-write_enc:
-	lw a0, ENCODE_a1_OFF($fp) 				#Regs[a0] <- outfd.
-	addiu a1, $fp, ENCODED_CHARS_OFF		#Regs[a1] <- encoded_chars. Cargo la direccion inicial del array 'encoded_chars' en Regs[a1].
-	li a2, MAX_GROUP_QTY 					#Regs[a2] <- max_group_qty.
-
-	li	v0, SYS_write 						#Write file.   
-	syscall
-
-	bnez a3, end_encode					    #Si hubo error de escritura (a3!=0): Goto end_decode. El error esta cargado en v0.
-	li v0, SUCCESS 							#Si no, cargo SUCCESS en v0.
-	b end_encode
-
-end_encode:
-	lw	ra, ENCODE_RA_OFF(sp)			#Restauro el return address.	
-	lw	gp, ENCODE_GP_OFF(sp)			#Restauro el global pointer.
-	lw	$fp, ENCODE_FP_OFF(sp)			#Restauro el $fp(frame pointer).
-		
-	addu sp, sp, ENCODE_SF_SZ			#Restauro el stack pointer.
+	addu a0,$fp,32 #mi posiciòn de escritura es a 32($fp)
+	move a1,zero 
+	li	a2,4	#sizeof(int)
 	
-	jr	ra
-.end encode
+	jal	memset #llamada a memset. despues, va a venir la primer lectura de qty_read
 
+	addu a1,$fp,32 #destino de lectura
+	lw	a0,64($fp) #input fd
+	li	a2,3 #quiero leer 4 bytes
+	li v0,SYS_read
+	
+	syscall #leo
+	
+	sw	v0,40($fp) #cargo en qty_read, lo que leyó y vino en v0
+
+loop_b64e: #aquí viene el ciclo de lectura
+	lw	t1,40($fp) #cargo qty_read
+	blez	t1,finciclo #si qty_read <= 0  -> salto
+	lw	t1,24($fp) #cargo state
+	bnez	t1,finciclo #si no es cero, termina
+
+	addu a2,$fp,32 #destino (read_letters)
+	lw	a0,64($fp) #fd in
+	lw	a1,68($fp) #fd out
+	lw	a3,40($fp) #qty_read
+	
+	jal	encode
+	
+	sw	v0,24($fp) #el resultado de decode se asigna a state
+
+	addu	v0,$fp,32 #se repite el memset de antes
+	move	a0,v0
+	move	a1,zero
+	li	a2,4	
+	
+	jal	memset
+
+
+	addu a1,$fp,32 #destino de lectura (qty_read)
+	lw	a0,64($fp) #input fd
+	li	a2,3 #quiero leer 4 bytes
+	li v0,SYS_read
+	
+	syscall
+	
+	sw	v0,40($fp)
+	
+	b loop_b64e
+	
+finciclo:
+	lw	v0,24($fp)
+	move	sp,$fp
+	lw	ra,56(sp)
+	lw	$fp,52(sp)
+	addu	sp,sp,64
+	jr	ra
+
+.end	base64_encode
 
