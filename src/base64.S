@@ -146,7 +146,7 @@ decode:
 for_decode:
     lw s0, DECODE_i_OFF($fp)                #Cargo el vlalor de i desde el stack.
 	lw t0, DECODE_a3_OFF($fp) 				#Regs[t0] <- count
-    beq s0, t0, write 						#bge s0, t0, write               		#If(i >= count): Goto write.
+    beq s0, t0, write_dec					#If(i >= count): Goto write_dec.
 
     lw t1, DECODE_a2_OFF($fp) 				#Regs[t1] <- read_letters.  
     addu t1, s0, t1 						#Regs[t1] <- read_letters + i.
@@ -210,7 +210,7 @@ end_for:
     sw s0, DECODE_i_OFF($fp)                #Actualizo la variable i en el stack.
     b for_decode
 
-write:
+write_dec:
     addiu t0, $fp, DECODE_INDEXES_OFF       #Regs[t0] <- indexes.
     addiu t1, $fp, DECODE_BUFF_OFF 			#Regs[t1] <- buff.	
 
@@ -276,4 +276,142 @@ end_decode:
 
     jr ra
 .end decode
+
+ENCODE_a3_OFF = 84
+ENCODE_a2_OFF = 80
+ENCODE_a1_OFF = 76
+ENCODE_a0_OFF = 72
+
+ENCODE_SF_SZ = 72
+ENCODE_RA_OFF = 64
+ENCODE_FP_OFF = 60
+ENCODE_GP_OFF = 56
+GROUP_QTY_OFF = 48
+J_OFF = 44
+I_OFF = 40
+ENCODED_CHARS_OFF = 36
+SHIFT_COUNT = 24
+INDEX_OFF = 20
+READ_BYTES_OFF = 16
+
+GROUP_SZ = 6
+BYTE_SZ = 8
+MAX_GROUP_QTY = 4
+SZ_INT = 4
+MASK = 0x3F
+
+.align 2
+.globl	encode
+.ent	encode
+encode:
+	.frame	$fp, ENCODE_SF_SZ, ra
+	.set	noreorder
+	.cpload	t9
+	.set	reorder
+	subu	sp, sp, ENCODE_SF_SZ
+	.cprestore ENCODE_GP_OFF
+	sw	ra, ENCODE_RA_OFF(sp)			#Guardo el ra(return address) actual.
+	sw	$fp, ENCODE_FP_OFF(sp)			#Guardo el $fp(frame pointer) actual.
+
+	move $fp, sp 						#Muevo el stack frame pointer a la base del stack.
+
+	sw	a0, ENCODE_a0_OFF($fp)			#Guardo los parametros recibidos (int infd, int outfd, int state, 
+	sw	a1, ENCODE_a1_OFF($fp)			#unsigned char *read_letters) en el ABA de la callee.
+	sw	a2, ENCODE_a2_OFF($fp)
+	sw	a3, ENCODE_a3_OFF($fp)
+
+	addiu a0, $fp, ENCODED_CHARS_OFF 	#Regs[a0] <- encoded_chars.
+	la t2, letters + FILL_CHAR_POS 		#Regs[t2] <- letters + FILL_CHAR_POS. Cargo la direccion en memoria del caracter de relleno en Regs[t2].
+	lbu a1, (t2) 					 	#Regs[a2] <- '='.
+	li a2, MAX_GROUP_QTY 				#Regs[a3] <- MAX_GROUP_QTY.
+
+	la t9, memset						#Llamado a subrutina 'memset'.
+	jalr t9
+
+	sw zero, I_OFF($fp) 				#Inicializo la variable i = 0.
+	lw t2, I_OFF($fp) 					#Regs[t2] <- i.
+	li t3, SZ_INT 						#Regs[t3] <- sizeof(int). Guardo el valor en bytes del tipo 'int' en Regs[t3].
+	lw t4, ENCODE_a2_OFF($fp) 			#Regs[t4] <- read_letters.
+	move t5, zero 						#Regs[t5] <- read_bytes. Inicializo Regs[t5] en 0 para usarlo como variable 'read_bytes'. 
+	sw t5, READ_BYTES_OFF($fp)          #Inicializo la variable 'read_bytes' en memoria.
+
+concatenate:
+	lw t5, READ_BYTES_OFF($fp)          #Regs[t5] <- read_bytes.
+	bge t2, t3, find_b64_char 			#If(i >= sizeof(int)): Goto find_b64_char.
+	addu t6, t4, t2 					#Regs[t6] <- read_letters + i.
+	lbu t6, (t6)						#Regs[t6] <- read_letters[i].
+
+	subu t7, t3, 1 						#Regs[t7] <- (sizeof(int) -1).
+	subu t7, t7, t2 					#Regs[t7] <- (sizeof(int) -1 -i).
+	mul t7, t7, BYTE_SZ         		#Regs[t7] <- (sizeof(int) -1 -i)*BYTE_SZ.
+	sll t8, t6, t7 						#Regs[t8] <- (read_letters[i] <<(sizeof(int) -1 -i)*BYTE_SZ).
+	or t5, t5, t8 						#read_bytes = read_bytes | (read_letters[i] <<(sizeof(int) -1 -i)*BYTE_SZ).
+	sw t5, READ_BYTES_OFF($fp)          #Actualizo la variable 'read_bytes' en memoria.
+	addiu t2, t2, 1 					#i++.
+	sw t2, I_OFF($fp)					#Actualizo la variable 'i' en memoria.
+	b concatenate						#Goto concatenate.
+
+find_b64_char:
+	lw	t0, ENCODE_a3_OFF($fp)			#Regs[t0] <- tot_read.
+	sll	t0, t0, 3						#Regs[t0] <- tot_read * BYTE_SZ.
+	li t1, GROUP_SZ 					#Regs[t1] <- GROUP_SZ.
+	divu t0, t1 						#Regs[lo] <- tot_read * BYTE_SZ / GROUP_SZ.
+
+	mflo t2 							#Regs[t2] <- group_qty.
+	sw t2, GROUP_QTY_OFF($fp) 			#Actualizo en memoria la variable group_qty.
+
+	sw zero, J_OFF($fp) 				#Inicializo la variable j = 0 en el memoria.
+	lw t3, J_OFF($fp) 					#Regs[t3] <- j.
+
+	li t4, MAX_GROUP_QTY                #Regs[t4] <- MAX_GROUP_QTY.
+	lw t5, READ_BYTES_OFF($fp)			#Regs[t5] <- read_bytes.	
+	la t6, letters 						#Regs[t6] <- letters. 
+	addiu t7, $fp, ENCODED_CHARS_OFF 	#Regs[t7] <- encoded_chars.
+
+for_group_qty:
+	bge t3, t2, write_enc 				#If(j >= group_qty): Goto write_enc.
+
+	subu t8, t4, t3 					#Regs[t8] <- (MAX_GROUP_QTY - j).
+	subu t8, t8, 1   					#Regs[t8] <- (MAX_GROUP_QTY - j - 1).
+	mul t8, t8, t1   					#Regs[t8] <- (MAX_GROUP_QTY - j - 1)*GROUP_SZ.
+	addiu t8, t8, BYTE_SZ				#Regs[t8] <- (MAX_GROUP_QTY - j - 1)*GROUP_SZ + BYTE_SZ.
+	sw t8, SHIFT_COUNT($fp)				#Actualizo la variable shift_count en memoria.
+
+	srl t8, t5, t8 						#Regs[t8] <- (read_bytes >> shift_count).
+	and t8, t8, MASK 					#Regs[t8] <- (read_bytes >> shift_count) & MASK.
+
+	sw t8, INDEX_OFF($fp)				#Actualizo la variable index en memoria.
+
+	addu t9, t6, t8 					#Regs[t9] <- letters + index.
+	lbu t8, (t9)						#Regs[t8] <- letters[index].
+
+	addu t0, t7, t3 					#Regs[t0] <- encoded_chars + j.
+	sb t8, (t0)							#encoded_chars[j] = letters[index].  
+
+	addiu t3, t3, 1 					#j++.
+	sw t3, J_OFF($fp) 					#Actualizo la variable 'j' en memoria.
+	b for_group_qty						#Goto for_group_qty.
+
+write_enc:
+	lw a0, ENCODE_a1_OFF($fp) 				#Regs[a0] <- outfd.
+	addiu a1, $fp, ENCODED_CHARS_OFF		#Regs[a1] <- encoded_chars. Cargo la direccion inicial del array 'encoded_chars' en Regs[a1].
+	li a2, MAX_GROUP_QTY 					#Regs[a2] <- max_group_qty.
+
+	li	v0, SYS_write 						#Write file.   
+	syscall
+
+	bnez a3, end_encode					    #Si hubo error de escritura (a3!=0): Goto end_decode. El error esta cargado en v0.
+	li v0, SUCCESS 							#Si no, cargo SUCCESS en v0.
+	b end_encode
+
+end_encode:
+	lw	ra, ENCODE_RA_OFF(sp)			#Restauro el return address.	
+	lw	gp, ENCODE_GP_OFF(sp)			#Restauro el global pointer.
+	lw	$fp, ENCODE_FP_OFF(sp)			#Restauro el $fp(frame pointer).
+		
+	addu sp, sp, ENCODE_SF_SZ			#Restauro el stack pointer.
+	
+	jr	ra
+.end encode
+
 

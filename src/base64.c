@@ -12,13 +12,14 @@
 
 #define BYTE_SZ 8
 #define GROUP_SZ 6.0
-#define SYMBOL_POS 62
+#define SYMBOL_A 62
+#define SYMBOL_B 63
 #define FILL_CHAR_POS 64
 #define ENCODED_GROUP_SZ 4
 #define DECODED_GROUP_SZ 3
-#define NEW_LINE '\n'
-#define MAX_LEN 76
 
+typedef enum error { ERROR =-1, SUCCESS, INVALID_CHARACTER, IO_ERROR, MEMORY_ERROR} Error_t;
+/*
 #define MASK 0x3F
 #define DMASK_1 0x30
 #define DMASK_2 0xf
@@ -29,43 +30,43 @@
 #define DELTA_LOW 71
 #define DELTA_NUM 4
 #define DELTA_SYM 18
+#define MAX_GROUP_QTY (DECODED_GROUP_SZ * BYTE_SZ) / GROUP_SZ
 
 static const char letters[] = {'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O',
 'P','Q','R','S','T','U','V','W','X','Y','Z','a','b','c','d','e','f','g','h','i','j','k',
 'l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','0','1','2','3','4','5',
 '6','7','8','9','+','/','='};
 
-typedef enum error { ERROR =-1, SUCCESS, INVALID_CHARACTER, IO_ERROR, MEMORY_ERROR} Error_t;
-
+*/
+/*
 int encode(int infd,int outfd, unsigned char *read_letters, int tot_read){
     int read_bytes = 0;
     unsigned int index = 0, shift_count = 0;
-    int max_group_qty = (DECODED_GROUP_SZ * BYTE_SZ) / GROUP_SZ;
-    int group_qty = (int)ceil((double)((tot_read * BYTE_SZ) / GROUP_SZ));
 
     //Inicializo el array 'encoded_chars' con el caracter de relleno:
-    unsigned char encoded_chars[max_group_qty + 1];
-    memset(&encoded_chars, letters[FILL_CHAR_POS], (max_group_qty)*sizeof(char));
+    unsigned char encoded_chars[MAX_GROUP_QTY + 1];
+    memset(&encoded_chars, letters[FILL_CHAR_POS], (MAX_GROUP_QTY)*sizeof(char));
 
     for(int i = 0; i < sizeof(int); ++i){
         read_bytes = read_bytes | (read_letters[i] << (sizeof(int) -1 -i)*BYTE_SZ);
     }
 
+    int group_qty = (int)ceil((double)((tot_read * BYTE_SZ) / GROUP_SZ));
+
     for (int j = 0; j < group_qty; ++j){
         //Ahora aplico operaciones logicas y obtengo un index
         //para cada grupo de 6 bits:
-        shift_count = (max_group_qty - j - 1)*GROUP_SZ + BYTE_SZ;
+        shift_count = (MAX_GROUP_QTY - j - 1)*GROUP_SZ + BYTE_SZ;
         index = (read_bytes >> shift_count) & MASK;
         //Uso el index para obtener un caracter del
-        //archivo de caracteres posibles:
+        //array de caracteres posibles:
         encoded_chars[j] = letters[index];
     }
-    int state = SUCCESS;
-    if(write(outfd, encoded_chars, max_group_qty) == ERROR){
-      	state = errno;
+    if(write(outfd, encoded_chars, MAX_GROUP_QTY) == ERROR){
+      	return errno;
     }
-    return state;
-}
+    return SUCCESS;
+}*/
 /*
 int decode(int infd, int outfd, unsigned char *read_letters, int count){
     char indexes[ENCODED_GROUP_SZ + 1] = {0};
@@ -98,10 +99,14 @@ int decode(int infd, int outfd, unsigned char *read_letters, int count){
             indexes[i] = read_letters[i] + DELTA_NUM;
             continue;
         }
-        if(!issymbol(read_letters + i, indexes + i)){
-            return INVALID_CHARACTER;
+        if(read_letters[i]==letters[SYMBOL_A]){
+            indexes[i] = SYMBOL_A;
+            continue;
+        } if(read_letters[i]==letters[SYMBOL_B]){
+            indexes[i] = SYMBOL_B;
+            continue;       
         }
-
+        return INVALID_CHARACTER;
     }
 
     //Teniendo los números asociados se hace la decodificación en sí misma
