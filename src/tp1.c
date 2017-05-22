@@ -30,31 +30,6 @@ bool free_mem(FILE* input, FILE* output){
     return (fclose(input) != EOF) && (fclose(output) != EOF);
 }
 
-void show_help(){
-		printf("Usage: \n \
-		tp0 -h \n \
-		tp0 -V \n \
-		tp0 [options] \n \
-		Options: \n \
-		-V, --version Print version and quit.\n \
-		-h, --help Print this information.\n \
-		-i, --input Location of the input file.\n \
-		-o, --output Location of the output file.\n \
-		-a, --action Program action: encode (default) or decode.\n \
-		Examples:\n \
-		tp0 -a encode -i ~/input -o ~/output\n \
-		tp0 -a decode \n");
-}
-
-void show_version(){
-	printf("Organizacion de Computadoras - TP0 \n \
-			Encoder/Decoder Base64 - v2.0 \n \
-			Group Members:\n \
-			Gonzalez Perez, Ailen Padron: 97043\n \
-			Mariotti, Maria Eugenia Padron: 96260\n \
-			Raña, Cristian Ezequiel Padron: 95457\n");
-}
-
 int main(int argc, char* argv[]){
 	
 	bool help, version, output, input, decode; //To know what to do
