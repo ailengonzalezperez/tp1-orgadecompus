@@ -248,7 +248,10 @@ find_b64_char:
 	li t1, GROUP_SZ 					#Regs[t1] <- GROUP_SZ.
 	divu t0, t1 						#Regs[lo] <- tot_read * BYTE_SZ / GROUP_SZ.
 
-	mflo t2 							#Regs[t2] <- group_qty.
+	mflo t2 							#Regs[t2] <- group_qty = (tot_read * BYTE_SZ ) / GROUP_SZ.
+	mfhi t3 							#Si el resto de la division fue mayor a 0, group_qty se redondea para arriba.
+	sgt t4, t3, zero 					
+	addu t2, t2, t4 					
 	sw t2, GROUP_QTY_OFF($fp) 			#Actualizo en memoria la variable group_qty.
 
 	sw zero, J_OFF($fp) 				#Inicializo la variable j = 0 en el memoria.
