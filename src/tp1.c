@@ -82,20 +82,27 @@ int main(int argc, char* argv[]){
 																//chequear si tercer campo hace falta
 		
 	}
-	if (fd_output == -1 || fd_input == -1){ //
-		printf("Falla en apertura de archivos. Intente nuevamente. \n");
-		return errno;
+	if (fd_output == -1)
+		exit = 1;
+	if (fd_input == -1){
+		exit = 2;
 	}
 		
-	if (decode){
-		exit = base64_decode(fd_input,fd_output);  //Chequear si devuelven un código de error
+	if (!exit){
+		if (decode){
+			exit = base64_decode(fd_input,fd_output);  //Chequear si devuelven un código de error
+		}
+		else{
+			exit = base64_encode(fd_input,fd_output);//Chequear si devuelven un código de error
+		}
 	}
 	else{
-		exit = base64_encode(fd_input,fd_output);//Chequear si devuelven un código de error
+			printf("\n%s",errmsg[exit]);
 	}
-	/*VERIFICAR SI FALTARÍA ALGÚN FREE*/
+	
 	close(fd_input);
 	close(fd_output);
+	
 	return exit;
 }
 
