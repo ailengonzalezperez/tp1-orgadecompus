@@ -1,6 +1,11 @@
 #ifndef BASE64_H
 #define BASE64_H
-typedef enum error { ERROR =-1, SUCCESS, INVALID_CHARACTER, IO_ERROR, MEMORY_ERROR} Error_t;
+
+const char* errmsg[4] = {
+    "Succeeded",
+    "Falla en archivo de salida.Intente nuevamente\n",
+    "Falla en archivo de entrada.Intente nuevamente\n",
+};
 
 /*Recibe dos file descriptors infd y outfd, 
 codifica los leido desde infd a base64 
